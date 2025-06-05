@@ -1,3 +1,4 @@
+// render-functions.js
 import iziToast from 'izitoast';
 import 'izitoast/dist/css/iziToast.min.css';
 import SimpleLightbox from 'simplelightbox';
@@ -9,10 +10,7 @@ const gallery = document.querySelector('.gallery');
 const loader = document.getElementById('loader');
 
 let query = '';
-let page = 1;
-let totalHits = 0;
 let lightbox;
-let observerActive = true;
 
 // Loader control
 const showLoader = () => loader.classList.remove('hidden');
@@ -53,29 +51,20 @@ const handleSearch = async event => {
     return;
   }
 
-  page = 1;
   gallery.innerHTML = '';
-  observer.unobserve(sentinel);
-
   showLoader();
+
   try {
-    const data = await fetchImages(query, page);
+    const data = await fetchImages(query);
     hideLoader();
 
     if (!data || data.hits.length === 0) {
-      iziToast.warning({ title: 'No results', message: 'Sorry, there are no images matching your search query. Please try again!' });
+      iziToast.warning({ title: 'No results', message: 'Sorry, no images found.' });
       return;
     }
 
-    totalHits = data.totalHits;
-    iziToast.success({ title: 'Hooray!', message: `We found ${totalHits} images.` });
-
+    iziToast.success({ title: 'Hooray!', message: `We found ${data.totalHits} images.` });
     renderImages(data.hits);
-    observer.observe(sentinel);
-
-    if (data.hits.length < 40) {
-      iziToast.warning({ title: 'End of results', message: "You've reached the end of search results." });
-    }
   } catch (error) {
     hideLoader();
     iziToast.error({ title: 'Error', message: 'Something went wrong.' });
@@ -83,42 +72,3 @@ const handleSearch = async event => {
 };
 
 form.addEventListener('submit', handleSearch);
-
-const loadMoreImages = async () => {
-  if (query && page * 40 < totalHits) {
-    page += 1;
-    showLoader();
-    try {
-      const data = await fetchImages(query, page);
-      hideLoader();
-
-      renderImages(data.hits);
-
-      if (data.hits.length < 40 || page * 40 >= totalHits) {
-        iziToast.warning({ title: 'End of results', message: "You've reached the end of search results." });
-        observer.unobserve(sentinel);
-      }
-    } catch (error) {
-      hideLoader();
-      iziToast.error({ title: 'Error', message: 'Failed to load more images.' });
-    }
-  }
-};
-
-const handleIntersection = entries => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting && observerActive) {
-      loadMoreImages();
-    }
-  });
-};
-
-const observer = new IntersectionObserver(handleIntersection, {
-  rootMargin: '200px',
-});
-
-// Create and observe sentinel
-const sentinel = document.createElement('div');
-sentinel.className = 'sentinel';
-document.body.appendChild(sentinel);
-observer.observe(sentinel);
